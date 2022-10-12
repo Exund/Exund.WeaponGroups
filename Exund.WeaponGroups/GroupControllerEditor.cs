@@ -3,43 +3,42 @@ using System.Collections.Generic;
 using System.Linq;
 using System.IO;
 using UnityEngine;
-using Nuterra.BlockInjector;
 
 namespace Exund.WeaponGroups
 {
-    class GroupControllerEditor : MonoBehaviour
+    internal class GroupControllerEditor : MonoBehaviour
     {
-        static Texture2D icon_cancel = GameObjectJSON.ImageFromFile(Path.Combine(WeaponGroupsMod.asm_path, "Assets/Icons/cancel.png"));
-        static Texture2D icon_remove = GameObjectJSON.ImageFromFile(Path.Combine(WeaponGroupsMod.asm_path, "Assets/Icons/remove.png"));
-        static Texture2D icon_rename = GameObjectJSON.ImageFromFile(Path.Combine(WeaponGroupsMod.asm_path, "Assets/Icons/rename.png"));
-        static float icon_size = 30;
+        internal static Texture2D icon_cancel;
+        internal static Texture2D icon_remove;
+        internal static Texture2D icon_rename;
+        private static readonly float icon_size = 30;
 
-        static GUIStyle textField;
-        static GUIStyle middledText;
-        static GUIStyle bigText;
+        private static GUIStyle textField;
+        private static GUIStyle middledText;
+        private static GUIStyle bigText;
 
-        private readonly int ID = 7790;
+        private readonly int ID = GUIUtility.GetControlID(FocusType.Passive);
         private Rect Win = new Rect(0, 0, 500f, 300f);
         private Vector2 scroll;
 
-        ModuleWeaponGroupController module;
-        ModuleWeaponGroupController.WeaponGroup selectedGroup;
-        bool renaming = false;
-        bool changeKey = false;
-        bool selectingWeapon = false;
-        bool weaponSelected = false;
-        bool groupAdded = false;
-        bool expanded = false;
+        private ModuleWeaponGroupController module;
+        private ModuleWeaponGroupController.WeaponGroup selectedGroup;
+        private bool renaming = false;
+        private bool changeKey = false;
+        private bool selectingWeapon = false;
+        private bool weaponSelected = false;
+        private bool groupAdded = false;
+        private bool expanded = false;
 
-        int groupToRemove = -1;
-        List<ModuleWeaponGroupController.WeaponWrapper> displayWeapons;
+        private int groupToRemove = -1;
+        private List<ModuleWeaponGroupController.WeaponWrapper> displayWeapons;
 
-        void Start()
+        private void Start()
         {
             useGUILayout = false;
         }
 
-        void Update()
+        private void Update()
         {
             if (module && !module.block.tank)
             {
@@ -51,11 +50,11 @@ namespace Exund.WeaponGroups
                 selectingWeapon = false;
                 try
                 {
-                    var temp_block = Singleton.Manager<ManPointer>.inst.targetVisible.block;
+                    var temp_block = Singleton.Manager<ManPointer>.inst.targetVisible?.block;
                     if (temp_block && temp_block.tank == module.block.tank)
                     {
                         var weapon = new ModuleWeaponGroupController.WeaponWrapper(temp_block);
-                        if (!selectedGroup.weapons.Any(w => w.block == temp_block) && (weapon.weapon || weapon.hammer || weapon.drill))
+                        if (selectedGroup.weapons.All(w => w.block != temp_block) && (weapon.weapon || weapon.hammer || weapon.drill))
                         {
                             selectedGroup.weapons.Add(weapon);
                             if(weapon.hammer)
@@ -69,7 +68,8 @@ namespace Exund.WeaponGroups
                                     ModuleWeaponGroupController.groups_for_hammer.Add(weapon.hammer, new List<ModuleWeaponGroupController.WeaponGroup>() { selectedGroup });
                                 }
                             }
-                            weapon.block.visible.EnableOutlineGlow(true, cakeslice.Outline.OutlineEnableReason.ScriptHighlight);
+
+                            weapon.block.Outline(true);
                             weaponSelected = true;
                         }
                     }
@@ -79,29 +79,30 @@ namespace Exund.WeaponGroups
 
             if (Input.GetMouseButtonDown(1))
             {
-                if (module)
-                {
-                    module.block.visible.EnableOutlineGlow(false, cakeslice.Outline.OutlineEnableReason.ScriptHighlight);
-                }
-
-                try
-                {
-                    var temp_block = Singleton.Manager<ManPointer>.inst.targetVisible.block;
-                    if (temp_block && temp_block.tank && temp_block.gameObject.GetComponent<ModuleWeaponGroupController>())
-                    {
-                        SelectModule(temp_block.gameObject.GetComponent<ModuleWeaponGroupController>());
-                    }
-                }
-                catch
-                {
-                    Clean();
-                }
-
-                useGUILayout = module;
+                CheckForController();
             }
         }
 
-        void OnGUI()
+        private void CheckForController()
+        {
+            var visible = Singleton.Manager<ManPointer>.inst.targetVisible;
+            if (visible)
+            {
+                var block = visible.block;
+                if (block)
+                {
+                    var controller = block.GetComponent<ModuleWeaponGroupController>();
+                    if (block.tank && controller)
+                    {
+                        SelectModule(controller);
+
+                        useGUILayout = true;
+                    }
+                }
+            }
+        }
+
+        private void OnGUI()
         {
             if (textField == null)
             {
@@ -123,7 +124,9 @@ namespace Exund.WeaponGroups
             }
 
             if (!useGUILayout)
+            {
                 return;
+            }
 
             if (Event.current.type == EventType.Layout)
             {
@@ -158,10 +161,11 @@ namespace Exund.WeaponGroups
                 {
                     selectedGroup.keyCode = current.keyCode;
                     changeKey = false;
-                } /*else if (current.isMouse) {
-                    Console.WriteLine(current.button + " " + current.keyCode);
-                }*/
+                }
             }
+
+            var icon_width = GUILayout.Width(icon_size);
+            var icon_height = GUILayout.Height(icon_size);
 
             GUILayout.BeginVertical();
             scroll = GUILayout.BeginScrollView(scroll);
@@ -184,7 +188,7 @@ namespace Exund.WeaponGroups
                                 //Renaming
                                 if (renaming && group == selectedGroup)
                                 {
-                                    group.name = GUILayout.TextField(group.name, textField, GUILayout.Width(250), GUILayout.Height(icon_size));
+                                    group.name = GUILayout.TextField(group.name, textField, GUILayout.Width(250), icon_height);
                                 }
                                 else
                                 {
@@ -194,18 +198,20 @@ namespace Exund.WeaponGroups
                                 GUILayout.FlexibleSpace();
 
                                 //Rename button
-                                if (GUILayout.Button(renaming && group == selectedGroup ? icon_cancel : icon_rename, GUILayout.Width(icon_size), GUILayout.Height(icon_size)))
+                                if (GUILayout.Button(renaming && group == selectedGroup ? icon_cancel : icon_rename, icon_width, icon_height))
                                 {
                                     renaming = !renaming;
                                     changeKey = false;
                                 }
 
                                 //Key button
-                                if (GUILayout.Button(changeKey && group == selectedGroup ? "Press a key" : group.keyCode.ToString(), GUILayout.MinWidth(icon_size)))
+                                if (GUILayout.Button(changeKey && group == selectedGroup ? "Press a key" : group.keyCode.ToString(), GUILayout.MinWidth(icon_size), icon_height))
+                                {
                                     changeKey = true;
+                                }
 
                                 //Remove button
-                                if (GUILayout.Button(icon_remove, GUILayout.Width(icon_size), GUILayout.Height(icon_size)))
+                                if (GUILayout.Button(icon_remove, icon_width, icon_height))
                                 {
                                     groupToRemove = i;
                                     if (selectedGroup == group)
@@ -215,7 +221,7 @@ namespace Exund.WeaponGroups
                                 }
 
                                 //Expand button
-                                if (GUILayout.Button(selectedGroup == group && expanded ? "V" : ">", GUILayout.Width(icon_size), GUILayout.Height(icon_size)))
+                                if (GUILayout.Button(selectedGroup == group && expanded ? "▲" : "▼", icon_width, icon_height))
                                 {
                                     if (group != selectedGroup)
                                     {
@@ -226,7 +232,7 @@ namespace Exund.WeaponGroups
 
                                         foreach (var w in selectedGroup.weapons)
                                         {
-                                            w.block.visible.EnableOutlineGlow(true, cakeslice.Outline.OutlineEnableReason.ScriptHighlight);
+                                            w.block.Outline(true);
                                         }
                                     }
                                     else
@@ -272,9 +278,9 @@ namespace Exund.WeaponGroups
 
                                         GUILayout.FlexibleSpace();
 
-                                        if (GUILayout.Button(icon_remove, GUILayout.Width(icon_size), GUILayout.Height(icon_size)))
+                                        if (GUILayout.Button(icon_remove, icon_width, icon_height))
                                         {
-                                            weapon.block.visible.EnableOutlineGlow(false, cakeslice.Outline.OutlineEnableReason.ScriptHighlight);
+                                            weapon.block.Outline(false);
                                             group.weapons.RemoveAt(j);
                                             if(weapon.hammer)
                                             {
@@ -311,39 +317,53 @@ namespace Exund.WeaponGroups
                 module.groups.Add(selectedGroup);
                 groupAdded = true;
             }
+
+            if (GUILayout.Button("Close"))
+            {
+                Clean();
+            }
             GUILayout.EndVertical();
 
             GUI.DragWindow();
         }
 
-        void SelectModule(ModuleWeaponGroupController controller)
+        private void SelectModule(ModuleWeaponGroupController controller)
         {
+            if (module)
+            {
+                module.block.Outline(false);
+            }
+
             module = controller;
-            module.block.visible.EnableOutlineGlow(true, cakeslice.Outline.OutlineEnableReason.ScriptHighlight);
+            module.block.Outline(true);
         }
 
-        void Clean()
+        private void Clean()
         {
             if (!module)
+            {
                 return;
-            module.block.visible.EnableOutlineGlow(false, cakeslice.Outline.OutlineEnableReason.ScriptHighlight);
+            }
+
+            module.block.Outline(false);
             module = null;
             useGUILayout = false;
-
             CleanGroup();
             selectedGroup = null;
+
             GUI.UnfocusWindow();
         }
 
-        void CleanGroup()
+        private void CleanGroup()
         {
             if (selectedGroup != null)
             {
                 foreach (var w in selectedGroup.weapons)
                 {
-                    w.block.visible.EnableOutlineGlow(false, cakeslice.Outline.OutlineEnableReason.ScriptHighlight);
+                    w.block.Outline(false);
                 }
             }
+
             selectingWeapon = false;
             weaponSelected = false;
             groupAdded = false;

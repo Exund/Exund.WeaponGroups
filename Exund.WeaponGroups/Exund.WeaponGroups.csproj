@@ -17,7 +17,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>bin\Exund.WeaponGroups\</OutputPath>
+    <OutputPath>bin\Weapon Groups\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -25,7 +25,7 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
+    <OutputPath>bin\Weapon Groups\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -37,10 +37,6 @@
     </Reference>
     <Reference Include="Assembly-CSharp">
       <HintPath>..\..\..\Program Files\Steam\steamapps\common\TerraTech\TerraTechWin64_Data\Managed\Assembly-CSharp.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="BlockInjector">
-      <HintPath>..\..\..\Program Files\Steam\steamapps\common\TerraTech\QMods\Nuterra.BlockInjector\BlockInjector.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="System" />
@@ -78,34 +74,22 @@
     <Compile Include="WeaponGroupsMod.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Assets\weapon_group_fusebox.obj">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="mod.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
+    <None Include="Assets\weapon_group_fusebox.obj" />
+    <None Include="mod.json" />
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>
-    <Content Include="Assets\Icons\cancel.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Icons\remove.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Icons\rename.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\weapon_group_fusebox.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
+    <Content Include="Assets\Icons\cancel.png" />
+    <Content Include="Assets\Icons\remove.png" />
+    <Content Include="Assets\Icons\rename.png" />
+    <Content Include="Assets\weapon_group_fusebox.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>del *.pdb
 @setlocal enableextensions enabledelayedexpansion
 
-set modpath="D:\Program Files\Steam\steamapps\common\TerraTech\QMods\"
+set modpath="D:\Program Files\Steam\steamapps\common\TerraTech\LocalMods\"
 
 if not exist !modpath! (
 echo Creating mod folder
@@ -115,6 +99,6 @@ echo Copying to game
 set e=$(TargetDir)..\&amp;amp;gt;nul
 xcopy /S /Y /R "!e:~0,-1!" !modpath!
 
-start "" "steam://rungameid/285920"</PostBuildEvent>
+: start "" "steam://rungameid/285920"</PostBuildEvent>
   </PropertyGroup>
 </Project>
