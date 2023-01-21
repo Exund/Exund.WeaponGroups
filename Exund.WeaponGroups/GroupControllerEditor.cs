@@ -54,21 +54,9 @@ namespace Exund.WeaponGroups
                     if (temp_block && temp_block.tank == module.block.tank)
                     {
                         var weapon = new ModuleWeaponGroupController.WeaponWrapper(temp_block);
-                        if (selectedGroup.weapons.All(w => w.block != temp_block) && (weapon.weapon || weapon.hammer || weapon.drill))
+                        if (selectedGroup.weapons.All(w => w.block != temp_block) && weapon.HasWeapons)
                         {
-                            selectedGroup.weapons.Add(weapon);
-                            if(weapon.hammer)
-                            {
-                                if(ModuleWeaponGroupController.groups_for_hammer.TryGetValue(weapon.hammer, out var groups))
-                                {
-                                    groups.Add(selectedGroup);
-                                }
-                                else
-                                {
-                                    ModuleWeaponGroupController.groups_for_hammer.Add(weapon.hammer, new List<ModuleWeaponGroupController.WeaponGroup>() { selectedGroup });
-                                }
-                            }
-
+                            selectedGroup.Add(weapon);
                             weapon.block.Outline(true);
                             weaponSelected = true;
                         }
@@ -133,13 +121,7 @@ namespace Exund.WeaponGroups
                 if (groupToRemove != -1)
                 {
                     var g = module.groups[groupToRemove];
-                    foreach (var w in g.weapons)
-                    {
-                        if (w.hammer)
-                        {
-                            ModuleWeaponGroupController.RemoveGroupForHammer(w.hammer, g);
-                        }
-                    }
+                    g.CleanManualGroups();
                     module.groups.RemoveAt(groupToRemove);
                     groupToRemove = -1;
                 }
@@ -281,11 +263,7 @@ namespace Exund.WeaponGroups
                                         if (GUILayout.Button(icon_remove, icon_width, icon_height))
                                         {
                                             weapon.block.Outline(false);
-                                            group.weapons.RemoveAt(j);
-                                            if(weapon.hammer)
-                                            {
-                                                ModuleWeaponGroupController.RemoveGroupForHammer(weapon.hammer, group);
-                                            }
+                                            group.Remove(weapon.block);
                                         }
                                     }
                                     GUILayout.EndHorizontal();

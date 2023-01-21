@@ -75,7 +75,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\weapon_group_fusebox.obj" />
-    <None Include="mod.json" />
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>
@@ -99,6 +98,6 @@ echo Copying to game
 set e=$(TargetDir)..\&amp;amp;gt;nul
 xcopy /S /Y /R "!e:~0,-1!" !modpath!
 
-: start "" "steam://rungameid/285920"</PostBuildEvent>
+:: start "" "steam://rungameid/285920"</PostBuildEvent>
   </PropertyGroup>
 </Project>

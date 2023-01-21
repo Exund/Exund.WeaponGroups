@@ -10,17 +10,36 @@ namespace Exund.WeaponGroups
     public class ModuleWeaponGroupController : Module
     {
         internal static readonly int aim_ID = 7777;
-        internal static readonly Dictionary<ModuleHammer, List<WeaponGroup>> groups_for_hammer = new Dictionary<ModuleHammer, List<WeaponGroup>>();
+        internal static readonly Dictionary<Module, List<WeaponGroup>> manual_groups = new Dictionary<Module, List<WeaponGroup>>();
 
         public List<WeaponGroup> groups = new List<WeaponGroup>();
 
         private SerialData data;
 
-        internal static void RemoveGroupForHammer(ModuleHammer hammer, WeaponGroup group)
+        internal static void RemoveGroupForManual(Module module, WeaponGroup group)
         {
-            if (ModuleWeaponGroupController.groups_for_hammer.TryGetValue(hammer, out var groups))
+            if (!module)
+            {
+                return;
+            }
+
+            if (ModuleWeaponGroupController.manual_groups.TryGetValue(module, out var groups))
             {
                 groups.Remove(group);
+            }
+        }
+
+        internal static void KeepFiring(Module __instance, int aim, ref bool fire)
+        {
+            if (aim != aim_ID && !fire)
+            {
+                if (manual_groups.TryGetValue(__instance, out var groups))
+                {
+                    if (groups.Any(g => g.fireNextFrame))
+                    {
+                        fire = true;
+                    }
+                }
             }
         }
 
@@ -41,7 +60,7 @@ namespace Exund.WeaponGroups
 
         private void OnDetaching()
         {
-            CleanHammersGroups();
+            CleanManualGroups();
             this.groups.Clear();
             block.tank.control.driveControlEvent.Unsubscribe(GetDriveControl);
             block.tank.DetachEvent.Unsubscribe(OnBlockDetached);
@@ -49,27 +68,16 @@ namespace Exund.WeaponGroups
 
         private void OnRecycle()
         {
-            CleanHammersGroups();
+            CleanManualGroups();
         }
 
         private void OnBlockDetached(TankBlock block, Tank tank)
         {
             foreach (var g in groups)
             {
-                for (int i = 0; i < g.weapons.Count; i++)
+                if (g.Remove(block))
                 {
-                    var w = g.weapons[i];
-                    if (w.block == block)
-                    {
-                        if(w.hammer)
-                        {
-                            RemoveGroupForHammer(w.hammer, g);
-                        }
-
-                        w.block.Outline(false);
-                        g.weapons.RemoveAt(i);
-                        return;
-                    }
+                    return;
                 }
             }
         }
@@ -90,29 +98,16 @@ namespace Exund.WeaponGroups
                     keyCode = (KeyCode)group.keyCode
                 };
 
-                var weapons = group.positions.Select(p =>
+
+                foreach (var p in group.positions)
                 {
                     var block = blockman.GetBlockAtPosition(p);
                     if (block)
                     {
                         var weapon = new WeaponWrapper(block);
-                        if(weapon.hammer)
-                        {
-                            if (ModuleWeaponGroupController.groups_for_hammer.TryGetValue(weapon.hammer, out var groups))
-                            {
-                                groups.Add(actual_group);
-                            }
-                            else
-                            {
-                                ModuleWeaponGroupController.groups_for_hammer.Add(weapon.hammer, new List<ModuleWeaponGroupController.WeaponGroup>() { actual_group });
-                            }
-                        }
-                        return weapon;
+                        actual_group.Add(weapon);
                     }
-                    return null;
-                }).Where(wrapper => wrapper != null).ToList();
-
-                actual_group.weapons = weapons;
+                }
 
                 groups.Add(actual_group);
             }
@@ -162,17 +157,11 @@ namespace Exund.WeaponGroups
             }
         }
 
-        private void CleanHammersGroups()
+        private void CleanManualGroups()
         {
             foreach (var g in groups)
             {
-                foreach (var w in g.weapons)
-                {
-                    if (w.hammer)
-                    {
-                        RemoveGroupForHammer(w.hammer, g);
-                    }
-                }
+                g.CleanManualGroups();
             }
         }
 
@@ -205,25 +194,96 @@ namespace Exund.WeaponGroups
                     w.Fire(fire);
                 }
             }
+
+            public void Add(WeaponWrapper weapon)
+            {
+                weapons.Add(weapon);
+
+                foreach (var melee in weapon.melees)
+                {
+                    AddManual(melee);
+                }
+
+                if (weapon.scoop)
+                {
+                    AddManual(weapon.scoop);
+                }
+            }
+
+            private void AddManual(Module module)
+            {
+                if (ModuleWeaponGroupController.manual_groups.TryGetValue(module, out var groups))
+                {
+                    groups.Add(this);
+                }
+                else
+                {
+                    ModuleWeaponGroupController.manual_groups.Add(module, new List<WeaponGroup>() { this });
+                }
+            }
+
+            public bool Remove(TankBlock block)
+            {
+                for (int i = 0; i < weapons.Count; i++)
+                {
+                    var w = weapons[i];
+                    if (w.block == block)
+                    {
+                        foreach (var melee in w.melees)
+                        {
+                            RemoveGroupForManual(melee, this);
+                        }
+
+                        RemoveGroupForManual(w.scoop, this);
+
+                        w.block.Outline(false);
+                        weapons.RemoveAt(i);
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            public void CleanManualGroups()
+            {
+                foreach (var w in weapons)
+                {
+                    foreach (var melee in w.melees)
+                    {
+                        RemoveGroupForManual(melee, this);
+                    }
+
+                    RemoveGroupForManual(w.scoop, this);
+                }
+            }
         }
 
         public class WeaponWrapper
         {
+            /*
             private static readonly MethodInfo drill_ControlInput = AccessTools.Method(typeof(ModuleDrill), "OnControlInput");
             private static readonly MethodInfo hammer_ControlInput = AccessTools.Method(typeof(ModuleHammer), "OnControlInput");
+            */
+
+            private static readonly MethodInfo melee_ControlInput = AccessTools.Method(typeof(ModuleMeleeWeapon), "OnControlInput");
+            private static readonly MethodInfo scoop_ControlInput = AccessTools.Method(typeof(ModuleScoop), "ControlInput");
+
 
             public ModuleWeapon weapon;
-            public ModuleDrill drill;
-            public ModuleHammer hammer;
+            public ModuleMeleeWeapon[] melees;
+            public ModuleScoop scoop;
 
             public TankBlock block;
+
+            public bool HasWeapons => weapon || melees.Length != 0 || scoop;
 
             public WeaponWrapper(TankBlock block)
             {
                 this.block = block;
                 this.weapon = block.GetComponent<ModuleWeapon>();
-                this.drill = block.GetComponent<ModuleDrill>();
-                this.hammer = block.GetComponent<ModuleHammer>();
+                this.melees = block.GetComponents<ModuleMeleeWeapon>();
+                this.scoop = block.GetComponent<ModuleScoop>();
             }
 
             public void Fire(bool fire)
@@ -232,13 +292,16 @@ namespace Exund.WeaponGroups
                 {
                     weapon.FireControl = fire;
                 }
-                if (drill)
+                if (melees.Length != 0)
                 {
-                    drill_ControlInput.Invoke(drill, new object[] { 0, fire });
+                    foreach (var melee in melees)
+                    {
+                        melee_ControlInput.Invoke(melee, new object[] { aim_ID, fire });
+                    }
                 }
-                if (hammer)
+                if (scoop)
                 {
-                    hammer_ControlInput.Invoke(hammer, new object[] { aim_ID, fire });
+                    scoop_ControlInput.Invoke(scoop, new object[] { aim_ID, fire });
                 }
             }
         }

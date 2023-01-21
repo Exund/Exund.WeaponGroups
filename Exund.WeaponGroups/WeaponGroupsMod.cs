@@ -38,7 +38,7 @@ namespace Exund.WeaponGroups
                 }
                 else
                 {
-                    Console.WriteLine("FAILED TO FETCH BuilderTools ModContainer");
+                    Console.WriteLine("FAILED TO FETCH Weapon Groups ModContainer");
                 }
                 Inited = true;
                 Load();
@@ -71,21 +71,22 @@ namespace Exund.WeaponGroups
 
     internal static class Patches
     {
-        [HarmonyPatch(typeof(ModuleHammer), "OnControlInput")]
-        private static class ModuleHammer_ControlInput
+        [HarmonyPatch(typeof(ModuleMeleeWeapon), "OnControlInput")]
+        private static class ModuleMeleeWeapon_ControlInput
         {
-            private static void Prefix(ModuleHammer __instance, int aim, ref bool fire)
+            private static void Prefix(ModuleMeleeWeapon __instance, int aim, ref bool fire)
             {
-                if (aim != ModuleWeaponGroupController.aim_ID && !fire)
-                {
-                    if (ModuleWeaponGroupController.groups_for_hammer.TryGetValue(__instance, out var groups))
-                    {
-                        if (groups.Any(g => g.fireNextFrame))
-                        {
-                            fire = true;
-                        }
-                    }
-                }
+                ModuleWeaponGroupController.KeepFiring(__instance, aim, ref fire);
+            }
+        }
+
+        [HarmonyPatch(typeof(ModuleScoop), "ControlInput")]
+        private static class ModuleScoop_ControlInput
+        {
+            private static void Prefix(ModuleScoop __instance, int aim, ref bool doLift)
+            {
+                //Debug.Log("[ModuleMeleeWeapon/OnControlInput/Prefix] " + aim + " " + fire);
+                ModuleWeaponGroupController.KeepFiring(__instance, aim, ref doLift);
             }
         }
     }
