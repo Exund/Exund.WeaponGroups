@@ -46,7 +46,7 @@ namespace Exund.WeaponGroups
         private void OnPool()
         {
             block.serializeEvent.Subscribe(this.OnSerialize);
-            block.serializeTextEvent.Subscribe(this.OnSerialize);
+            block.serializeTextEvent.Subscribe(this.OnSerializeText);
 
             block.AttachedEvent.Subscribe(OnAttached);
             block.DetachingEvent.Subscribe(OnDetaching);
@@ -114,6 +114,11 @@ namespace Exund.WeaponGroups
 
             data = null;
             block.tank.ResetPhysicsEvent.Unsubscribe(this.OnTankPostSpawn);
+        }
+
+        private void OnSerializeText(bool saving, TankPreset.BlockSpec blockSpec, bool onTech)
+        {
+            OnSerialize(saving, blockSpec);
         }
 
         private void OnSerialize(bool saving, TankPreset.BlockSpec blockSpec)
